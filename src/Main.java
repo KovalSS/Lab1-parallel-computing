@@ -1,3 +1,4 @@
+import java.util.Locale;
 
 class Main {
     static final int PHYSICAL_CORES = 8;
@@ -45,7 +46,7 @@ class Main {
                 for (Thread t : threads) t.join();
                 long endTime = System.nanoTime();
                 double durationMs = (endTime - startTime) / 1000000.0;
-                System.out.printf("Threads: %d | Time: %.4f ms\n", threadCount, durationMs);            }
+                System.out.printf(Locale.US,"Threads: %d | Time: %.4f ms\n", threadCount, durationMs);            }
         }
 
     }
