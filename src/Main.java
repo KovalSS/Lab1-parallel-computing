@@ -6,8 +6,9 @@ import java.util.Locale;
 public class Main {
     static final int PHYSICAL_CORES = 8;
     static final int LOGICAL_CORES = 12;
+    static final int RUNS = 3;
 
-    static final int RUNS = 50;
+    public static volatile int preventOptimization;
 
     static final int[] N = {50, 100, 500, 1000, 2000, 2500, 5000, 7500, 10000, 15000, 20000};
     static final int[] threadCounts = {
@@ -31,10 +32,53 @@ public class Main {
         return matrix;
     }
 
+    public static void printMatrixSample(int[][] matrix, int size) {
+        int limit = Math.min(size, 5);
+        for (int i = 0; i < limit; i++) {
+            for (int j = 0; j < limit; j++) {
+                System.out.print(matrix[i][j] + " ");
+            }
+            System.out.println();
+        }
+        System.out.println("...");
+    }
+
     public static void main(String[] args) throws InterruptedException {
+        System.out.println("Demo Correctness Check:");
+        int demoN = 5;
+        int[][] demoA = generateMatrix(demoN);
+        int[][] demoB = generateMatrix(demoN);
+        int[][] demoC = new int[demoN][demoN];
+
+        for(int i=0; i<demoN; i++)
+            for(int j=0; j<demoN; j++)
+                demoC[i][j] = demoA[i][j] + demoB[i][j];
+
+        System.out.println("Matrix A (Sample):"); printMatrixSample(demoA, demoN);
+        System.out.println("Matrix B (Sample):"); printMatrixSample(demoB, demoN);
+        System.out.println("Result C (Sample):"); printMatrixSample(demoC, demoN);
+        System.out.println("--------------------------------------------------\n");
+
+        for (int n : N) {
+            int[][] A = generateMatrix(n);
+            int[][] B = generateMatrix(n);
+            int[][] C = new int[n][n];
+            double totalDuration = 0;
+            for (int r = 0; r < RUNS; r++) {
+                long startTime = System.nanoTime();
+                for(int i=0; i<n; i++)
+                    for(int j=0; j<n; j++)
+                        C[i][j] = A[i][j] + B[i][j];
+                long endTime = System.nanoTime();
+                totalDuration += (endTime - startTime) / 1_000_000.0;
+            }
+            preventOptimization = C[n-1][n-1];
+            double avgDuration = totalDuration / RUNS;
+            System.out.printf(Locale.US, "N: %d | Time: %.4f ms\n", n, avgDuration);
+        }
+
         try (PrintWriter writer = new PrintWriter(new File("results.csv"))) {
             writer.println("MatrixSize,Threads,Time_ms");
-            System.out.println("Start benchmarking with " + RUNS + " runs average...");
 
             for (int n : N) {
                 int[][] A = generateMatrix(n);
@@ -44,8 +88,8 @@ public class Main {
                 System.out.printf("Processing Matrix Size: %dx%d\n", n, n);
 
                 for (int threadCount : threadCounts) {
-
                     double totalDuration = 0;
+
                     for (int r = 0; r < RUNS; r++) {
                         long startTime = System.nanoTime();
 
@@ -64,11 +108,12 @@ public class Main {
                         for (Thread t : threads) t.join();
 
                         long endTime = System.nanoTime();
-                        totalDuration += (endTime - startTime) / 1000000.0;
+                        totalDuration += (endTime - startTime) / 1_000_000.0;
                     }
 
-                    double avgDuration = totalDuration / RUNS;
+                    preventOptimization = C[n-1][n-1];
 
+                    double avgDuration = totalDuration / RUNS;
                     System.out.printf(Locale.US, "Threads: %d | Avg Time: %.4f ms\n", threadCount, avgDuration);
                     writer.printf(Locale.US, "%d,%d,%.4f\n", n, threadCount, avgDuration);
                     writer.flush();
